@@ -1,0 +1,25 @@
+from tokenizers import Tokenizer, models, trainers, pre_tokenizers, processors
+
+# Define the BPE tokenizer
+tokenizer = Tokenizer(models.BPE())
+
+# Configure pre-tokenization to split words efficiently
+tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+
+# Setup a trainer to learn from the dataset
+trainer = trainers.BpeTrainer(special_tokens=["<s>", "</s>", "<unk>", "<pad>"], vocab_size=1_000)
+
+# Load dataset
+with open("dataset.txt", "r", encoding="utf-8") as f:
+    text_data = f.readlines()
+
+# Train tokenizer on the text dataset
+tokenizer.train_from_iterator(text_data, trainer)
+
+# Save tokenizer for future use
+tokenizer.save("bpe_tokenizer.json")
+
+# Example usage: Encoding a sentence
+encoded = tokenizer.encode("This is a sample sentence.")
+print("Tokens:", encoded.tokens)
+print("Token IDs:", encoded.ids)
