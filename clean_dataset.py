@@ -20,6 +20,6 @@ f = open("output2.txt", "r")
 sample_text = f.read()
 f.close()
 
-f = open("cleaned_output2.txt", "w")
+f = open("nice_output2.txt", "w")
 f.write(clean_text(sample_text))
 f.close()
