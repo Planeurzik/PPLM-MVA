@@ -19,12 +19,17 @@ def get_n_entries(n):
             break
     return last_10_entries
 
-last_10_entries = get_n_entries(10000)
+def print_n_entries():
+    # use name="sample-10BT" to use the 10BT sample
+    fw = load_dataset("HuggingFaceFW/fineweb-edu", name="sample-10BT", split="train",
+        streaming=True)
 
 
-dataset_en = []
-# Print the last 10 entries
-for entry in last_10_entries:
-    if entry["language"]=="en":
-       dataset_en.append(entry) 
-print(len(last_10_entries), len(dataset_en))
+    # Iterate through the dataset
+    for entry in iter(fw):
+        if entry["language"]=="en":
+            print(entry["text"])
+
+
+
+print_n_entries()
