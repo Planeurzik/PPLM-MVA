@@ -35,12 +35,12 @@ class Head(nn.Module):
 class MultiHeadAttention(nn.Module):
     """ multiple heads of self-attention in parallel """
 
-    def __init__(self, n_head, head_size, head_output_dim):
+    def __init__(self, n_head, head_size, head_output_dim, context_length, n_embed):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_input_dim = n_embed, 
                                          head_size = head_size, 
                                          head_output_dim = head_output_dim,
-                                         context_length) for _ in range(n_head)])
+                                         context_length = context_length) for _ in range(n_head)])
         self.proj = nn.Linear(n_head * head_output_dim, n_embed)
 
     def forward(self, x):
@@ -50,13 +50,15 @@ class MultiHeadAttention(nn.Module):
 
 class MultiHeadPositional(nn.Module):
     
-    def __init__(self, n_head, head_size, head_output_dim):
+    def __init__(self, n_head, head_size, head_output_dim, context_length, n_embed):
         super().__init__()
         self.token_embedding_table = nn.Embedding(n_token, n_embed)
         self.position_embedding_table = nn.Embedding(context_length, n_embed)
         self.self_attention_heads = MultiHeadAttention(n_head = n_head,
                                                       head_size = head_size,
-                                                      head_output_dim = head_output_dim) 
+                                                      head_output_dim = head_output_dim,
+                                                       context_length = context_length,
+                                                       n_embed = n_embed) 
         self.last_head = nn.Linear(n_embed, n_token)
 
     def forward(self, idx, y=None):
@@ -105,7 +107,7 @@ class FeedForward(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(n_embed, n_hidden),
-            nn.Relu(),
+            nn.ReLU(),
             nn.Linear(n_hidden, n_embed),
         )
 
@@ -116,11 +118,13 @@ class FeedForward(nn.Module):
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
 
-    def __init__(self, n_head, head_size, head_output_dim, n_hidden):
+    def __init__(self, n_head, head_size, head_output_dim, n_hidden, context_length, n_embed):
         super().__init__()
         self.self_attention_heads = MultiHeadAttention(n_head = n_head,
                                                        head_size = head_size,
-                                                       head_output_dim = head_output_dim)
+                                                       head_output_dim = head_output_dim,
+                                                       context_length= context_length,
+                                                       n_embed = n_embed)
         self.ffwd = FeedForward(n_hidden = n_hidden, n_embed = n_embed)
         self.ln1 = nn.LayerNorm(n_embed)
         self.ln2 = nn.LayerNorm(n_embed)
@@ -147,7 +151,7 @@ class LanguageModel(nn.Module):
         super().__init__()
         self.token_embedding_table = nn.Embedding(n_token, n_embed)
         self.position_embedding_table = nn.Embedding(n_ctx, n_embed)
-        self.blocks = nn.Sequential(*[Block(n_head, head_size, head_output_dim, n_hidden) for _ in range(n_layer)])
+        self.blocks = nn.Sequential(*[Block(n_head, head_size, head_output_dim, n_hidden, context_length = n_ctx, n_embed = n_embed) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(n_embed)
         self.lm_head = nn.Linear(n_embed, n_token)
 
