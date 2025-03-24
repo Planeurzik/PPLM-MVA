@@ -36,7 +36,7 @@ class Dataset:
     def get_batch(self):
         end = self.fill_tokens(self.batch_size*self.n_ctx*self.n_buffer)
         batch = [[self.tokens.pop() for i in range(self.n_ctx)] for i in range(self.batch_size)]
-        batch = torch.Tensor(batch)
+        batch = torch.tensor(batch, dtype=torch.int)
         return batch
 
     def __next__(self):
