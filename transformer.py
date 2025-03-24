@@ -3,12 +3,15 @@ import torch.nn as nn
 from torch.nn import functional as F
 import matplotlib.pyplot as plt
 import numpy as np
-from .utils import Tokenizer, Dataset
-from .models import LanguageModel
+from utils import Dataset
+#from models import LanguageModel
 
-tokenizer = Tokenizer("path")
+batch_size = 4
+n_tokens = 1000
+dataset = Dataset("dataset/nice_output2.txt", batch_size, n_tokens, "bpe_tokenizer.json")
 
-dataset = Dataset("path")
+print(next(dataset))
+quit()
 
 @torch.no_grad()
 def estimate_loss(model, eval_iters = 100):
