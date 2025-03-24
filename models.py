@@ -12,6 +12,7 @@ class Head(nn.Module):
         self.value = nn.Linear(head_input_dim, head_output_dim, bias=False)
         # Some Pytorch way of defining a matrix without trainable parameters 
         self.register_buffer('tril', torch.tril(torch.ones(context_length, context_length)))     
+        self.context_length = context_length
         
         self.head_size = head_size
 
@@ -27,7 +28,7 @@ class Head(nn.Module):
         q = self.query(x) # (B, T, H)
         v = self.value(x) # (B, T, O)
         attention_scores = q @ k.transpose(1,2) # (B, T, H) @ (B, H, T) -> (B, T, T)
-        mask = torch.triu(torch.ones(context_length, context_length), diagonal=1)
+        mask = torch.triu(torch.ones(self.context_length, self.context_length), diagonal=1)
         masked_attention_scores = attention_scores.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
         attention_weights = torch.softmax(masked_attention_scores * self.head_size**-0.5, dim=-1) # (B, T, T)
         context_vectors = attention_weights @ v # (B, T, T) @ (B, T, O) -> (B, T, O)
@@ -160,7 +161,7 @@ class LanguageModel(nn.Module):
         # I = head_input_dim = head_output_dim = n_embed
 
         tok_emb = self.token_embedding_table(idx) # (B, T, I)
-        pos_emb = self.position_embedding_table(torch.arange(T)) # (T, I)
+        pos_emb = self.position_embedding_table(torch.arange(T, device = idx.device)) # (T, I)
         x = tok_emb + pos_emb # (B, T, I)
         x = self.blocks(x) # (B, T, I)
         x = self.ln_f(x) # (B, T, I)
