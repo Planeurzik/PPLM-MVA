@@ -1,6 +1,7 @@
 import torch
 from collections import deque
 import re
+from transformers import PreTrainedTokenizerFast
 
 def clean_text(text):
     # Define allowed characters: English letters, numbers, punctuation, common symbols, and whitespace
@@ -9,11 +10,13 @@ def clean_text(text):
     # Remove unwanted characters while keeping spaces and newlines
     return re.sub(allowed_chars, "~", text)
 
+def load_tokenizer(path):
+    return PreTrainedTokenizerFast(tokenizer_file=path)
 
 class Dataset:
-    def __init__(self, path, batch_size, n_tokens, tokenizer, n_buffer = 100):
+    def __init__(self, path, batch_size, n_tokens, tokenizer_path, n_buffer = 100):
         self.path = path
-        self.tokenizer = tokenizer
+        self.tokenizer = load_tokenizer(tokenizer_path)
         file =  open(self.path, "r")
         self.tokens = deque()
         self.batch_size = batch_size
