@@ -33,6 +33,7 @@ class Head(nn.Module):
         attention_weights = torch.softmax(masked_attention_scores * self.head_size**-0.5, dim=-1) # (B, T, T)
         context_vectors = attention_weights @ v # (B, T, T) @ (B, T, O) -> (B, T, O)
         return context_vectors
+
 class MultiHeadAttention(nn.Module):
     """ multiple heads of self-attention in parallel """
 
@@ -156,7 +157,7 @@ class LanguageModel(nn.Module):
         self.ln_f = nn.LayerNorm(n_embed)
         self.lm_head = nn.Linear(n_embed, n_token)
 
-    def forward(self, idx, y=None):
+    def forward(self, idx):
         B, T = idx.shape
         # I = head_input_dim = head_output_dim = n_embed
 
@@ -167,12 +168,10 @@ class LanguageModel(nn.Module):
         x = self.ln_f(x) # (B, T, I)
         logits = self.lm_head(x) # (B, T, n_token)
 
-        if y is None:
-            loss = None
-        else:
-            B, T, _ = logits.shape
-            logits = logits.view(B*T, n_token)
-            y = y.view(B*T)
-            loss = F.cross_entropy(logits, y)
+        y = idx
+        B, T, n_token = logits.shape
+        logits = logits.view(B*T, n_token)
+        y = y.view(B*T)
+        loss = F.cross_entropy(logits, y.long())
 
         return logits, loss
