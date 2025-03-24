@@ -6,10 +6,13 @@ import numpy as np
 from utils import Dataset
 from models import LanguageModel
 
-batch_size = 2
-n_ctx = 1000
-dataset = Dataset("dataset/nice_output2.txt", batch_size,n_ctx, "bpe_tokenizer.json")
+batch_size = 16
+n_ctx = 200
+train_dataset = Dataset("dataset/train.txt", batch_size, n_ctx, "bpe_tokenizer.json")
+test_dataset = Dataset("dataset/test.txt", batch_size, n_ctx, "bpe_tokenizer.json")
 n_token = 5000
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 n_embed = 256
 model = LanguageModel(n_head = 6, 
@@ -21,40 +24,52 @@ model = LanguageModel(n_head = 6,
                       n_token = n_token,
                       n_ctx = n_ctx)
 
-for i in range(100):
-    tokens = next(dataset).to(device)
-
-quit()
+model = model.to(device)
 
 @torch.no_grad()
-def estimate_loss(model, eval_iters = 100):
-    out = {}
-    for split in ['train', 'val']:
-        losses = torch.zeros(eval_iters)
-        for k in range(eval_iters):
-            X, Y = get_batch(split)
-            logits, loss = model(X, Y)
-            losses[k] = loss.item()
-        out[split] = losses.mean()
-    return out
+def estimate_loss(model):
+    losses = []
+    for batch in test_dataset:
+        batch = batch.to(device)
+        logits, loss = model(batch)
+        losses.append(loss.item())
+    return np.mean(losses)
 
 
-def train(model, n_iterations = 10000, learning_rate = 1e-3, eval_interval = 1000, eval_iters = 100):
+def train(model, epochs = 10000, learning_rate = 1e-3, eval_interval = 1000, save_path="checkpoints.pt"):
     # create a PyTorch optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
+    
+    losses_train = []
+    losses_test = []
 
-    for iter in range(n_iterations):
-        # every once in a while evaluate the loss on train and validation sets
-        if iter % eval_interval == 0 or iter == n_iterations - 1:
-            losses = estimate_loss(model, eval_iters)
-            print(f"step {iter}: train loss {losses['train']:.4f}, validation loss {losses['val']:.4f}")
-
-        X,Y = get_batch("train")
-        _, loss = model(X, Y)
-        optimizer.zero_grad(set_to_none=True)
-        loss.backward()
-        optimizer.step()
+    for epoch in range(epochs):
+        k=0
+        for batch in train_dataset:
+            batch = batch.to(device)
+            _, loss = model(batch)
+            loss_at_step = loss.item()
+            if k % eval_interval == 0:
+                loss_test = estimate_loss(model)
+                print(f"Epoch {epoch}, step {k}: train loss {loss_at_step:.4f}, test loss {loss_test:.4f}")
+                checkpoint = {
+                    'epoch': epoch,
+                    'step': k,
+                    'model_state_dict': model.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'train_loss': loss_at_step,
+                    'test_loss': loss_test
+                }
+                torch.save(checkpoint, save_path)
+                print(f"Model checkpoint saved at {save_path}")
+            losses_train.append(loss_at_step)
+            losses_test.append(loss_test)
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
+            k+=1
+    return losses_train, losses_test
+        
 
 print(sum(p.numel() for p in model.parameters())/1e6, ' M parameters')
-train(model, n_iterations = 20000, learning_rate = 1e-3, eval_interval = 1000, eval_iters = 100)
-
+losses_train, losses_test = train(model, epochs = 5, learning_rate = 1e-3, eval_interval = 100)

@@ -14,7 +14,7 @@ def load_tokenizer(path):
     return PreTrainedTokenizerFast(tokenizer_file=path)
 
 class Dataset:
-    def __init__(self, path, batch_size, n_ctx, tokenizer_path, n_buffer = 100):
+    def __init__(self, path, batch_size, n_ctx, tokenizer_path, n_buffer = 10):
         self.path = path
         self.tokenizer = load_tokenizer(tokenizer_path)
         file =  open(self.path, "r")

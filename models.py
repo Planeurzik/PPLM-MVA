@@ -168,10 +168,11 @@ class LanguageModel(nn.Module):
         x = self.ln_f(x) # (B, T, I)
         logits = self.lm_head(x) # (B, T, n_token)
 
-        y = idx
+        y = idx[:,1:]
         B, T, n_token = logits.shape
-        logits = logits.view(B*T, n_token)
-        y = y.view(B*T)
+        logits = logits[:,:-2]
+        logits = logits.view(B*(T-1), n_token)
+        y = y.view(B*(T-1))
         loss = F.cross_entropy(logits, y.long())
 
         return logits, loss
