@@ -4,6 +4,34 @@ from torch.nn import functional as F
 import matplotlib.pyplot as plt
 import numpy as np
 
+class Head(nn.Module):
+    def __init__(self, head_input_dim, head_size, head_output_dim, context_length):
+        super().__init__()
+        self.key = nn.Linear(head_input_dim, head_size, bias=False)
+        self.query = nn.Linear(head_input_dim, head_size, bias=False)
+        self.value = nn.Linear(head_input_dim, head_output_dim, bias=False)
+        # Some Pytorch way of defining a matrix without trainable parameters 
+        self.register_buffer('tril', torch.tril(torch.ones(context_length, context_length)))     
+        
+        self.head_size = head_size
+
+    def forward(self, x):
+        B, T, C = x.shape
+        # if training: B = batch_size, else B = 1
+        # T = context_length
+        # I = head_input_dim
+        # H = head_size
+        # O = head_output_dim
+        
+        k = self.key(x)   # (B, T, H)
+        q = self.query(x) # (B, T, H)
+        v = self.value(x) # (B, T, O)
+        attention_scores = q @ k.transpose(1,2) # (B, T, H) @ (B, H, T) -> (B, T, T)
+        mask = torch.triu(torch.ones(context_length, context_length), diagonal=1)
+        masked_attention_scores = attention_scores.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
+        attention_weights = torch.softmax(masked_attention_scores * self.head_size**-0.5, dim=-1) # (B, T, T)
+        context_vectors = attention_weights @ v # (B, T, T) @ (B, T, O) -> (B, T, O)
+        return context_vectors
 class MultiHeadAttention(nn.Module):
     """ multiple heads of self-attention in parallel """
 
@@ -11,7 +39,8 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         self.heads = nn.ModuleList([Head(head_input_dim = n_embed, 
                                          head_size = head_size, 
-                                         head_output_dim = head_output_dim) for _ in range(n_head)])
+                                         head_output_dim = head_output_dim,
+                                         context_length) for _ in range(n_head)])
         self.proj = nn.Linear(n_head * head_output_dim, n_embed)
 
     def forward(self, x):
@@ -69,16 +98,15 @@ class LayerNorm(nn.Module):
         return [self.gamma, self.beta]
 
 
-
-class FeedFoward(nn.Module):
+class FeedForward(nn.Module):
     """ a simple linear layer followed by a non-linearity """
 
-    def __init__(self, n_embed2, n_embed = n_embed):
+    def __init__(self, n_hidden, n_embed):
         super().__init__()
         self.net = nn.Sequential(
-            nn.Linear(n_embed, n_embed2),
-            nn.Tanh(),
-            nn.Linear(n_embed2, n_embed),
+            nn.Linear(n_embed, n_hidden),
+            nn.Relu(),
+            nn.Linear(n_hidden, n_embed),
         )
 
     def forward(self, x):
@@ -88,12 +116,12 @@ class FeedFoward(nn.Module):
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
 
-    def __init__(self, n_head, head_size, head_output_dim, n_embed2):
+    def __init__(self, n_head, head_size, head_output_dim, n_hidden):
         super().__init__()
         self.self_attention_heads = MultiHeadAttention(n_head = n_head,
                                                        head_size = head_size,
                                                        head_output_dim = head_output_dim)
-        self.ffwd = FeedFoward(n_embed2 = n_embed2, n_embed = n_embed)
+        self.ffwd = FeedForward(n_hidden = n_hidden, n_embed = n_embed)
         self.ln1 = nn.LayerNorm(n_embed)
         self.ln2 = nn.LayerNorm(n_embed)
 
@@ -115,11 +143,11 @@ class Block(nn.Module):
 
 class LanguageModel(nn.Module):
 
-    def __init__(self, n_head, head_size, head_output_dim, n_embed2, n_layer):
+    def __init__(self, n_head, head_size, head_output_dim, n_embed, n_hidden, n_layer, n_token, n_ctx):
         super().__init__()
         self.token_embedding_table = nn.Embedding(n_token, n_embed)
-        self.position_embedding_table = nn.Embedding(context_length, n_embed)
-        self.blocks = nn.Sequential(*[Block(n_head, head_size, head_output_dim, n_embed2) for _ in range(n_layer)])
+        self.position_embedding_table = nn.Embedding(n_ctx, n_embed)
+        self.blocks = nn.Sequential(*[Block(n_head, head_size, head_output_dim, n_hidden) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(n_embed)
         self.lm_head = nn.Linear(n_embed, n_token)
 

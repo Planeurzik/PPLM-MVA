@@ -4,13 +4,26 @@ from torch.nn import functional as F
 import matplotlib.pyplot as plt
 import numpy as np
 from utils import Dataset
-#from models import LanguageModel
+from models import LanguageModel
 
-batch_size = 4
-n_tokens = 1000
-dataset = Dataset("dataset/nice_output2.txt", batch_size, n_tokens, "bpe_tokenizer.json")
+batch_size = 2
+n_ctx = 1000
+dataset = Dataset("dataset/nice_output2.txt", batch_size,n_ctx, "bpe_tokenizer.json")
+n_token = 5000
 
-print(next(dataset))
+n_embed = 256
+model = LanguageModel(n_head = 6, 
+                      head_size = 16,
+                      head_output_dim = 16,
+                      n_embed = n_embed,
+                      n_hidden = 4 * n_embed,
+                      n_layer = 4,
+                      n_token = n_token,
+                      n_ctx = n_ctx)
+
+for i in range(100):
+    tokens = next(dataset).to(device)
+
 quit()
 
 @torch.no_grad()
@@ -42,11 +55,6 @@ def train(model, n_iterations = 10000, learning_rate = 1e-3, eval_interval = 100
         loss.backward()
         optimizer.step()
 
-model = LanguageModel(n_head = 6, 
-                      head_size = 16,
-                      head_output_dim = 16,
-                      n_embed2 = 4 * n_embed,
-                      n_layer = 4)
 print(sum(p.numel() for p in model.parameters())/1e6, ' M parameters')
 train(model, n_iterations = 20000, learning_rate = 1e-3, eval_interval = 1000, eval_iters = 100)
 
