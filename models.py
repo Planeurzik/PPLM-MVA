@@ -12,6 +12,7 @@ class Head(nn.Module):
         self.value = nn.Linear(head_input_dim, head_output_dim, bias=False)
         # Some Pytorch way of defining a matrix without trainable parameters 
         self.register_buffer('tril', torch.tril(torch.ones(context_length, context_length)))     
+        self.posbias = nn.Parameter(torch.zeros(context_length,context_length))
         self.context_length = context_length
         
         self.head_size = head_size
@@ -28,6 +29,7 @@ class Head(nn.Module):
         q = self.query(x) # (B, T, H)
         v = self.value(x) # (B, T, O)
         attention_scores = q @ k.transpose(1,2) # (B, T, H) @ (B, H, T) -> (B, T, T)
+        attention_scores = attention_scores+self.posbias[None,:,:]
         mask = torch.triu(torch.ones(self.context_length, self.context_length), diagonal=1)
         masked_attention_scores = attention_scores.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
         attention_weights = torch.softmax(masked_attention_scores * self.head_size**-0.5, dim=-1) # (B, T, T)
@@ -49,41 +51,6 @@ class MultiHeadAttention(nn.Module):
         out = torch.cat([h(x) for h in self.heads], dim=-1)
         out = self.proj(out)
         return out
-
-class MultiHeadPositional(nn.Module):
-    
-    def __init__(self, n_head, head_size, head_output_dim, context_length, n_embed):
-        super().__init__()
-        self.token_embedding_table = nn.Embedding(n_token, n_embed)
-        self.position_embedding_table = nn.Embedding(context_length, n_embed)
-        self.self_attention_heads = MultiHeadAttention(n_head = n_head,
-                                                      head_size = head_size,
-                                                      head_output_dim = head_output_dim,
-                                                       context_length = context_length,
-                                                       n_embed = n_embed) 
-        self.last_head = nn.Linear(n_embed, n_token)
-
-    def forward(self, idx, y=None):
-        B, T = idx.shape
-        # B = either batch_size or 1
-        # T = context_length
-        # I = head_input_dim 
-        
-        tok_emb = self.token_embedding_table(idx) # (B, T, I)
-        pos_emb = self.position_embedding_table(torch.arange(T)) # (T, I)
-        x = tok_emb + pos_emb # (B, T, I)
-
-        x = self.self_attention_heads(x) # (B, T, n_embed)
-        logits = self.last_head(x) # (B, T, n_token)
-        
-        if y is None:
-            loss = None
-        else:
-            logits = logits.view(B * T, n_token)
-            y = y.view(B * T)
-            loss = F.cross_entropy(logits, y)
-        return logits, loss        
-
 
 class LayerNorm(nn.Module):
     def __init__(self, dim, eps=1e-5, momentum=0.1):
@@ -120,7 +87,7 @@ class FeedForward(nn.Module):
 class Block(nn.Module):
     """ Transformer block: communication followed by computation """
 
-    def __init__(self, n_head, head_size, head_output_dim, n_hidden, context_length, n_embed):
+    def __init__(self, n_head, head_size, head_output_dim, n_hidden, context_length, n_embed, n_token):
         super().__init__()
         self.self_attention_heads = MultiHeadAttention(n_head = n_head,
                                                        head_size = head_size,
@@ -153,7 +120,7 @@ class LanguageModel(nn.Module):
         super().__init__()
         self.token_embedding_table = nn.Embedding(n_token, n_embed)
         self.position_embedding_table = nn.Embedding(n_ctx, n_embed)
-        self.blocks = nn.Sequential(*[Block(n_head, head_size, head_output_dim, n_hidden, context_length = n_ctx, n_embed = n_embed) for _ in range(n_layer)])
+        self.blocks = nn.Sequential(*[Block(n_head, head_size, head_output_dim, n_hidden, context_length = n_ctx, n_embed = n_embed, n_token=n_token) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(n_embed)
         self.lm_head = nn.Linear(n_embed, n_token)
 
@@ -170,9 +137,9 @@ class LanguageModel(nn.Module):
 
         y = idx[:,1:]
         B, T, n_token = logits.shape
-        logits = logits[:,:-2]
-        logits = logits.view(B*(T-1), n_token)
-        y = y.view(B*(T-1))
-        loss = F.cross_entropy(logits, y.long())
+        logits_shifted = logits[:,:-1]
+        logits_shifted = logits_shifted.reshape(B*(T-1), n_token)
+        y = y.reshape(B*(T-1))
+        loss = F.cross_entropy(logits_shifted, y.long())
 
         return logits, loss

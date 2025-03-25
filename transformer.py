@@ -7,20 +7,20 @@ from utils import Dataset
 from models import LanguageModel
 
 batch_size = 16
-n_ctx = 200
-train_dataset = Dataset("dataset/train.txt", batch_size, n_ctx, "bpe_tokenizer.json")
+n_ctx = 300
+train_dataset = Dataset("dataset/trainb.txt", batch_size, n_ctx, "bpe_tokenizer.json")
 test_dataset = Dataset("dataset/test.txt", batch_size, n_ctx, "bpe_tokenizer.json")
 n_token = 5000
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-n_embed = 256
+n_embed = 1024
 model = LanguageModel(n_head = 6, 
                       head_size = 16,
                       head_output_dim = 16,
                       n_embed = n_embed,
                       n_hidden = 4 * n_embed,
-                      n_layer = 4,
+                      n_layer = 10,
                       n_token = n_token,
                       n_ctx = n_ctx)
 
@@ -36,22 +36,27 @@ def estimate_loss(model):
     return np.mean(losses)
 
 
-def train(model, epochs = 10000, learning_rate = 1e-3, eval_interval = 1000, save_path="checkpoints.pt"):
+def train(model, epochs = 10000, learning_rate = 5e-4, eval_interval = 1000, save_path="checkpoints.pt"):
     # create a PyTorch optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
     
     losses_train = []
     losses_test = []
 
+    loss_mean=0
+    i=0
     for epoch in range(epochs):
         k=0
         for batch in train_dataset:
+            i+=1
             batch = batch.to(device)
             _, loss = model(batch)
             loss_at_step = loss.item()
+            loss_mean+=loss_at_step
             if k % eval_interval == 0:
                 loss_test = estimate_loss(model)
-                print(f"Epoch {epoch}, step {k}: train loss {loss_at_step:.4f}, test loss {loss_test:.4f}")
+                loss_mean = loss_mean/i
+                print(f"Epoch {epoch}, step {k}: train loss {loss_mean:.4f}, test loss {loss_test:.4f}")
                 checkpoint = {
                     'epoch': epoch,
                     'step': k,
@@ -62,8 +67,11 @@ def train(model, epochs = 10000, learning_rate = 1e-3, eval_interval = 1000, sav
                 }
                 torch.save(checkpoint, save_path)
                 print(f"Model checkpoint saved at {save_path}")
-            losses_train.append(loss_at_step)
-            losses_test.append(loss_test)
+                losses_train.append(loss_at_step)
+                losses_test.append(loss_test)
+
+                loss_mean=0
+                i=0
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
@@ -72,4 +80,4 @@ def train(model, epochs = 10000, learning_rate = 1e-3, eval_interval = 1000, sav
         
 
 print(sum(p.numel() for p in model.parameters())/1e6, ' M parameters')
-losses_train, losses_test = train(model, epochs = 5, learning_rate = 1e-3, eval_interval = 100)
+losses_train, losses_test = train(model, epochs = 40, learning_rate =5e-5, eval_interval = 1000)
