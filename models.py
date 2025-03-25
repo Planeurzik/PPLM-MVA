@@ -29,7 +29,7 @@ class Head(nn.Module):
         q = self.query(x) # (B, T, H)
         v = self.value(x) # (B, T, O)
         attention_scores = q @ k.transpose(1,2) # (B, T, H) @ (B, H, T) -> (B, T, T)
-        attention_scores = attention_scores+self.posbias[None,:,:]
+        attention_scores = attention_scores#+self.posbias[None,:,:]
         mask = torch.triu(torch.ones(self.context_length, self.context_length), diagonal=1)
         masked_attention_scores = attention_scores.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
         attention_weights = torch.softmax(masked_attention_scores * self.head_size**-0.5, dim=-1) # (B, T, T)
@@ -123,6 +123,7 @@ class LanguageModel(nn.Module):
         self.blocks = nn.Sequential(*[Block(n_head, head_size, head_output_dim, n_hidden, context_length = n_ctx, n_embed = n_embed, n_token=n_token) for _ in range(n_layer)])
         self.ln_f = nn.LayerNorm(n_embed)
         self.lm_head = nn.Linear(n_embed, n_token)
+        self.n_ctx = n_ctx
 
     def forward(self, idx):
         B, T = idx.shape
@@ -143,3 +144,21 @@ class LanguageModel(nn.Module):
         loss = F.cross_entropy(logits_shifted, y.long())
 
         return logits, loss
+    
+    def generate(self, inp_tokens, device, n_tok_max = 200, T=1):
+        i = len(inp_tokens)-40
+        tokens = torch.tensor(inp_tokens).to(device)
+        tokens = torch.nn.functional.pad(tokens,(0,self.n_ctx-tokens.shape[0]))
+        with torch.no_grad():
+            while i<n_tok_max:
+                logits, loss = self(tokens[None,:])
+                logits_i = logits[0,i-1]/T
+                top_k_values, top_k_indices = torch.topk(logits_i, 1000)
+                top_k_probs = F.softmax(top_k_values)
+                token_k_id = torch.multinomial(top_k_probs, num_samples=1)
+                token_id = top_k_indices[token_k_id[0]]
+                tokens[i] = token_id
+                i+=1
+
+            
+        return tokens

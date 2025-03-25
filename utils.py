@@ -14,9 +14,9 @@ def load_tokenizer(path):
     return PreTrainedTokenizerFast(tokenizer_file=path)
 
 class Dataset:
-    def __init__(self, path, batch_size, n_ctx, tokenizer_path, n_buffer = 10):
+    def __init__(self, path, batch_size, n_ctx, tokenizer, n_buffer = 10):
         self.path = path
-        self.tokenizer = load_tokenizer(tokenizer_path)
+        self.tokenizer = tokenizer
         file =  open(self.path, "r")
         self.tokens = deque()
         self.batch_size = batch_size
@@ -35,7 +35,7 @@ class Dataset:
 
     def get_batch(self):
         end = self.fill_tokens(self.batch_size*self.n_ctx*self.n_buffer)
-        batch = [[self.tokens.pop() for i in range(self.n_ctx)] for i in range(self.batch_size)]
+        batch = [[self.tokens.popleft() for i in range(self.n_ctx)] for i in range(self.batch_size)]
         batch = torch.tensor(batch, dtype=torch.int)
         return batch
 
