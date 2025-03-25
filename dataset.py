@@ -34,4 +34,4 @@ def print_n_entries(output_file):
 
 
 
-print_n_entries("output.txt")
+print_n_entries("big.txt")

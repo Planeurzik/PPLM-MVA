@@ -16,10 +16,10 @@ def clean_text(text):
 #こんにちは！(Hello in Japanese) should be removed.
 #"""
 
-f = open("output2.txt", "r")
+f = open("big.txt", "r")
 sample_text = f.read()
 f.close()
 
-f = open("nice_output2.txt", "w")
+f = open("nice_big.txt", "w")
 f.write(clean_text(sample_text))
 f.close()

@@ -7,10 +7,10 @@ tokenizer = Tokenizer(models.BPE())
 tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
 
 # Setup a trainer to learn from the dataset
-trainer = trainers.BpeTrainer(special_tokens=["<s>", "</s>", "<unk>", "<pad>"], vocab_size=5_000)
+trainer = trainers.BpeTrainer(special_tokens=["<s>", "</s>", "<unk>", "<pad>"], vocab_size=10_000)
 
 # Load dataset
-with open("nice_output2.txt", "r", encoding="utf-8") as f:
+with open("nice_big.txt", "r", encoding="utf-8") as f:
     text_data = f.readlines()
 
 # Train tokenizer on the text dataset
