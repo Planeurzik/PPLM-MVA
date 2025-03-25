@@ -3,14 +3,17 @@ import torch.nn as nn
 from torch.nn import functional as F
 import matplotlib.pyplot as plt
 import numpy as np
-from utils import Dataset
+from utils import Dataset, load_tokenizer
 from models import LanguageModel
 
 batch_size = 16
 n_ctx = 300
-train_dataset = Dataset("dataset/trainb.txt", batch_size, n_ctx, "bpe_tokenizer.json")
-test_dataset = Dataset("dataset/test.txt", batch_size, n_ctx, "bpe_tokenizer.json")
+tokenizer_path = "bpe_tokenizer.json"
+tokenizer = load_tokenizer(tokenizer_path)
+train_dataset = Dataset("dataset/trainb.txt", batch_size, n_ctx, tokenizer)
+test_dataset = Dataset("dataset/test.txt", batch_size, n_ctx, tokenizer)
 n_token = 5000
+save_path = "checkpoints.pt"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -77,7 +80,16 @@ def train(model, epochs = 10000, learning_rate = 5e-4, eval_interval = 1000, sav
             optimizer.step()
             k+=1
     return losses_train, losses_test
-        
+
+def inference(model, tokenizer, start_string, n_tok_max = 100):
+    tokens = tokenizer.encode(start_string)
+    n_tokens = model.generate(tokens, device, n_tok_max =n_tok_max)
+    string = tokenizer.decode(n_tokens)
+    return string
 
 print(sum(p.numel() for p in model.parameters())/1e6, ' M parameters')
-losses_train, losses_test = train(model, epochs = 40, learning_rate =5e-5, eval_interval = 1000)
+checkpoint = torch.load(save_path)
+print("loading checkpoint epoch ",checkpoint["epoch"])
+model.load_state_dict(checkpoint['model_state_dict'])
+out_string = inference(model, tokenizer, "For all", n_tok_max = 40)
+print(out_string)
