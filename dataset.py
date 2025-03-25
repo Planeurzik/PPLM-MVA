@@ -20,18 +20,6 @@ def get_n_entries(n):
             break
     return last_10_entries
 
-def clean_text(text):
-    # Remove everything that is not a letter, number, punctuation, or common English symbol
-    text = re.sub(r"[^a-zA-Z0-9.,!?;:'\"()\[\]{}\-+=_/\\*&^%$#@<>. ]", "~", text)
-    return text
-
-"""
-# Example Usage:
-sample_text = "Hello, こんにちは! This is a test: 123 &*(^%"
-cleaned_text = clean_text(sample_text)
-print(cleaned_text)  # Output: "Hello, ! This is a test: 123 &*(^%"
-"""
-
 def print_n_entries(output_file):
     # use name="sample-10BT" to use the 10BT sample
     fw = load_dataset("HuggingFaceFW/fineweb-edu", name="sample-10BT", split="train",
