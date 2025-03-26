@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 import matplotlib.pyplot as plt
 import numpy as np
+from utils import create_toeplitz_matrix_from_vector
 
 class Head(nn.Module):
     def __init__(self, head_input_dim, head_size, head_output_dim, context_length):
@@ -13,12 +14,14 @@ class Head(nn.Module):
         # Some Pytorch way of defining a matrix without trainable parameters 
         self.register_buffer('tril', torch.tril(torch.ones(context_length, context_length)))     
         self.posbias = nn.Parameter(torch.zeros(context_length,context_length))
+        #self.posbias = nn.Parameter(torch.zeros(context_length,))
         self.context_length = context_length
         
         self.head_size = head_size
 
     def forward(self, x):
         B, T, C = x.shape
+
         # if training: B = batch_size, else B = 1
         # T = context_length
         # I = head_input_dim
@@ -29,7 +32,9 @@ class Head(nn.Module):
         q = self.query(x) # (B, T, H)
         v = self.value(x) # (B, T, O)
         attention_scores = q @ k.transpose(1,2) # (B, T, H) @ (B, H, T) -> (B, T, T)
-        attention_scores = attention_scores#+self.posbias[None,:,:]
+
+        #posbiasmat = create_toeplitz_matrix_from_vector(self.posbias)
+        attention_scores = attention_scores+self.posbias[None,:,:]
         mask = torch.triu(torch.ones(self.context_length, self.context_length), diagonal=1)
         masked_attention_scores = attention_scores.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
         attention_weights = torch.softmax(masked_attention_scores * self.head_size**-0.5, dim=-1) # (B, T, T)
@@ -146,14 +151,14 @@ class LanguageModel(nn.Module):
         return logits, loss
     
     def generate(self, inp_tokens, device, n_tok_max = 200, T=1):
-        i = len(inp_tokens)-40
+        i = len(inp_tokens)//2
         tokens = torch.tensor(inp_tokens).to(device)
         tokens = torch.nn.functional.pad(tokens,(0,self.n_ctx-tokens.shape[0]))
         with torch.no_grad():
             while i<n_tok_max:
                 logits, loss = self(tokens[None,:])
                 logits_i = logits[0,i-1]/T
-                top_k_values, top_k_indices = torch.topk(logits_i, 1000)
+                top_k_values, top_k_indices = torch.topk(logits_i, 100)
                 top_k_probs = F.softmax(top_k_values)
                 token_k_id = torch.multinomial(top_k_probs, num_samples=1)
                 token_id = top_k_indices[token_k_id[0]]

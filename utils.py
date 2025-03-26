@@ -46,3 +46,17 @@ class Dataset:
     def __iter__(self):
         self.file.seek(0)
         return self
+
+def create_toeplitz_matrix_from_vector(vector):
+    # Determine the size of the Toeplitz matrix
+    n = vector.shape[0]
+
+    # Create a range tensor for indexing
+    row_indices = torch.arange(n, device= vector.device).unsqueeze(0)
+    col_indices = torch.arange(n, device = vector.device).unsqueeze(1)
+
+    # Use broadcasting to create the Toeplitz matrix
+    toeplitz_matrix = vector[torch.abs(row_indices - col_indices)]
+
+    return toeplitz_matrix
+
