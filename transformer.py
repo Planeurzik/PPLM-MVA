@@ -32,7 +32,7 @@ model = LanguageModel(n_head = 16,
                       n_token = n_token,
                       n_ctx = n_ctx)
 
-model = nn.DataParallel(model)
+#model = nn.DataParallel(model)
 
 model = model.to(device)
 
@@ -64,16 +64,16 @@ def train(model, epochs = 10000, learning_rate = 3e-4, eval_interval = 1000, sav
             loss_at_step = loss.item()
             loss_mean+=loss_at_step
             if k % eval_interval == 0:
-                #loss_test = estimate_loss(model)
+                loss_test = estimate_loss(model)
                 loss_mean = loss_mean/i
-                print(f"Epoch {epoch}, step {k}: train loss {loss_mean:.4f}")#, test loss {loss_test:.4f}")
+                print(f"Epoch {epoch}, step {k}: train loss {loss_mean:.4f}, test loss {loss_test:.4f}")
                 checkpoint = {
                     'epoch': epoch,
                     'step': k,
                     'model_state_dict': model.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'train_loss': loss_at_step,
-                    #'test_loss': loss_test
+                    'test_loss': loss_test
                 }
                 torch.save(checkpoint, save_path)
                 print(f"Model checkpoint saved at {save_path}")
