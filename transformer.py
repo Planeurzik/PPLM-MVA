@@ -94,7 +94,7 @@ def train(model, epochs = 10000, learning_rate = 3e-4, eval_interval = 1000, sav
 def inference(model, tokenizer, tokens, n_tok_max = 100):
     #tokens = tokenizer.encode(start_string)
     n_tokens = model.generate(tokens, device, n_tok_max =n_tok_max)
-    string = tokenizer.decode(string_tokens)
+    string = tokenizer.decode(n_tokens)
     return string
 
 print(sum(p.numel() for p in model.parameters())/1e6, ' M parameters')
