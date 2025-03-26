@@ -1,4 +1,4 @@
-f = open("dataset/nice_output2.txt","r")
+f = open("nice_big.txt","r")
 dataset = f.read()
 f.close()
 
@@ -8,10 +8,10 @@ def train_test_split_text(text, split_ratio=0.8):
     test_text = text[split_point:]
     return train_text, test_text
 
-train_dataset, test_dataset = train_test_split_text(dataset, split_ratio=0.9)
-f = open("dataset/train.txt","w")
+train_dataset, test_dataset = train_test_split_text(dataset, split_ratio=0.995)
+f = open("dataset/trainb.txt","w")
 f.write(train_dataset)
 f.close()
-f = open("dataset/test.txt","w")
+f = open("dataset/testb.txt","w")
 f.write(test_dataset)
 f.close()

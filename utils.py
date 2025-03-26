@@ -60,3 +60,5 @@ def create_toeplitz_matrix_from_vector(vector):
 
     return toeplitz_matrix
 
+def proper_decode(tokens):
+    return "".join(tokens).replace("Ġ", " ").strip()

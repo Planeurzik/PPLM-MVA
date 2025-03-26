@@ -31,6 +31,7 @@ def print_n_entries(output_file):
         for entry in iter(fw):
             if entry["language"]=="en":
                 f.write(entry["text"])
+                f.write("<s>")
 
 
 
