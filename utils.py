@@ -62,3 +62,8 @@ def create_toeplitz_matrix_from_vector(vector):
 
 def proper_decode(tokens):
     return "".join(tokens).replace("Ġ", " ").strip()
+
+tokenizer = load_tokenizer("bpe_tokenizer.json")
+phrase1 = "This is sampl bljkdjk."
+print(tokenizer.tokenize(phrase1))
+print(tokenizer.decode(tokenizer.encode(phrase1)))

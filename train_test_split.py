@@ -8,7 +8,7 @@ def train_test_split_text(text, split_ratio=0.8):
     test_text = text[split_point:]
     return train_text, test_text
 
-train_dataset, test_dataset = train_test_split_text(dataset, split_ratio=0.995)
+train_dataset, test_dataset = train_test_split_text(dataset, split_ratio=0.999)
 f = open("dataset/trainb.txt","w")
 f.write(train_dataset)
 f.close()
