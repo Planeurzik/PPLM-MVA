@@ -44,7 +44,12 @@ def estimate_loss(model):
     losses = []
     for batch in test_dataset:
         batch = batch.to(device)
+<<<<<<< HEAD
         logits, loss, kv_cache = model(batch)
+=======
+        logits, loss = model(batch)
+        #loss = torch.sum(loss)
+>>>>>>> refs/remotes/origin/main
         losses.append(loss.item())
     print(time.time()-ptime)
     return np.mean(losses)
@@ -65,6 +70,7 @@ def train(model, epochs = 10000, learning_rate = 3e-4, eval_interval = 1000, sav
             i+=1
             batch = batch.to(device)
             _, loss, kv_cache = model(batch)
+            #loss = torch.sum(loss)
             loss_at_step = loss.item()
             loss_mean+=loss_at_step
             if k % eval_interval == 0:
