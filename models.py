@@ -159,26 +159,7 @@ class LanguageModel(nn.Module):
 
         return logits, loss, nkv_cache
      
-    def generate_kv_biased(self, inp_tokens, pasx, device, n_tok_max = 200, T=1, kv_cache= None):
-        i = len(inp_tokens)
-        tokens = torch.tensor(inp_tokens).to(device)
-        tokens = torch.nn.functional.pad(tokens,(0,n_tok_max-tokens.shape[0]))
-        logits, loss, kv_cache = self(tokens[None,:i], kv_cache = kv_cache)
-        logits = logits[0,i-1]
-        with torch.no_grad():
-            while i<n_tok_max:
-                logits_i = logits/T
-                top_k_values, top_k_indices = torch.topk(logits_i, 50)
-                top_k_probs = F.softmax(top_k_values,0)
-                token_k_id = torch.multinomial(top_k_probs, num_samples=1)
-                token_id = top_k_indices[token_k_id[0]]
-                tokens[i] = token_id
-                logits, loss, kv_cache = self(tokens[None,i:i+1], kv_cache = kv_cache)
-                logits = logits[0,0]
-                i+=1
-        return tokens, kv_cache
-
-
+    
     def generate_kv(self, inp_tokens, device, n_tok_max = 200, T=1, kv_cache= None):
         i = len(inp_tokens)
         tokens = torch.tensor(inp_tokens).to(device)
