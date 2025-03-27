@@ -8,13 +8,13 @@ from models import LanguageModel
 import time
 
 batch_size = 8
-n_ctx = 500
+n_ctx = 200
 tokenizer_path = "bpe_tokenizer.json"
 tokenizer = load_tokenizer(tokenizer_path)
-train_dataset = Dataset("dataset/trainb.txt", batch_size, n_ctx, tokenizer)
-test_dataset = Dataset("dataset/testb.txt", batch_size, n_ctx, tokenizer)
+train_dataset = Dataset("dataset/train.txt", batch_size, n_ctx, tokenizer)
+test_dataset = Dataset("dataset/test.txt", batch_size, n_ctx, tokenizer)
 n_token = 10000
-save_path = "checkpoints/checkpoint_huge.pt"
+save_path = "checkpoints/checkpoint_tiny.pt"
 #load_path = "checkpoints/checkpoint_huge.pt"
 #load_path = "checkpoints/checkpoints_toeplitz.pt"
 load_path = None
@@ -24,13 +24,13 @@ lr = 5e-5
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-n_embed = 1048
-model = LanguageModel(n_head = 16, 
-                      head_size =64,
-                      head_output_dim =64,
+n_embed = 512
+model = LanguageModel(n_head = 4, 
+                      head_size = 64,
+                      head_output_dim = 64,
                       n_embed = n_embed,
                       n_hidden = 4 * n_embed,
-                      n_layer = 12,
+                      n_layer = 5,
                       n_token = n_token,
                       n_ctx = n_ctx)
 
@@ -44,12 +44,7 @@ def estimate_loss(model):
     losses = []
     for batch in test_dataset:
         batch = batch.to(device)
-<<<<<<< HEAD
         logits, loss, kv_cache = model(batch)
-=======
-        logits, loss = model(batch)
-        #loss = torch.sum(loss)
->>>>>>> refs/remotes/origin/main
         losses.append(loss.item())
     print(time.time()-ptime)
     return np.mean(losses)
@@ -74,14 +69,14 @@ def train(model, epochs = 10000, learning_rate = 3e-4, eval_interval = 1000, sav
             loss_at_step = loss.item()
             loss_mean+=loss_at_step
             if k % eval_interval == 0:
-                loss_test = estimate_loss(model)
+                loss_test = 0#estimate_loss(model)
                 loss_mean = loss_mean/i
                 print(f"Epoch {epoch}, step {k}: train loss {loss_mean:.4f}, test loss {loss_test:.4f}")
                 checkpoint = {
                     'epoch': epoch,
                     'step': k,
                     'model_state_dict': model.state_dict(),
-                    'optimizer_state_dict': optimizer.state_dict(),
+                    #'optimizer_state_dict': optimizer.state_dict(),
                     'train_loss': loss_at_step,
                     'test_loss': loss_test
                 }
@@ -116,7 +111,7 @@ if load_path is not None:
 
 int_text = next(iter(train_dataset))[0][:n_ctx//2]
 if TRAIN:
-    losses_train, losses_test = train(model, epochs = 40, learning_rate =lr, eval_interval = 1000, save_path = save_path)
+    losses_train, losses_test = train(model, epochs = 40, learning_rate =lr, eval_interval = 100, save_path = save_path)
 
 print(int_text)
 out_string = inference(model, tokenizer, int_text, n_tok_max = n_ctx)

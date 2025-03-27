@@ -1,4 +1,4 @@
-algorithm                                                                                                                                                                                                                           [126/1852]
+algorithm
 analog
 app
 application
@@ -53,7 +53,7 @@ enter
 FAQ
 file
 firewall
-firmware                                                                                                                                                                                                                             [71/1852]
+firmware
 flaming
 flash
 folder
