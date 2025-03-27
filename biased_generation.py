@@ -55,6 +55,8 @@ def generate_kv_biased(model, inp_tokens, pasx, device, n_tok_max = 200, T=1, kv
             tokens[i] = token_id
             logits, loss, kv_cache =model(tokens[None,i:i+1], kv_cache = kv_cache)
             logits = logits[0,0]
+            log_probs = pasx(logits)
+            print(log_probs)
             i+=1
     return tokens, kv_cache
 
@@ -107,7 +109,14 @@ class BoWAttributeModel(nn.Module):
             topic_masks[topic] = mask
         return topic_masks
 
-    def forward(self, logits):
+    def get_log_topic_prob(self,logits,topic):
+        mask =self.topic_masks[topic].to(logits.device)
+        topic_sum = torch.sum(logits * mask.view(1, 1, -1), dim=-1)
+        return topic_sum
+
+
+
+    def forward(self, logits, topic = 0):
         """
         Compute the log probability that the generated tokens (given by logits) belong to each topic.
 
@@ -118,15 +127,9 @@ class BoWAttributeModel(nn.Module):
         #probs = F.softmax(logits, dim=-1)  # Shape: (batch_size, nb_tokens_sentence, vocab_size)
         log_topic_probs = {}
         
-        for topic, mask in self.topic_masks.items():
-            mask = mask.to(logits.device)
-            topic_sum = torch.sum(logits * mask.view(1, 1, -1), dim=-1)
-            #log_topic_prob = torch.log(torch.sum(topic_sum, dim=-1))
-            log_topic_probs[topic] = topic_sum
-        
+        for topic in range(len(self.topic_masks)):
+            log_topic_probs[topic] = self.get_log_topic_prob(logits, topic)
         return log_topic_probs
-
-class TopicModel(nn.Module):
 
 
 folder_path = 'wordlists'
@@ -138,6 +141,10 @@ print(sum(p.numel() for p in model.parameters())/1e6, ' M parameters')
 checkpoint = torch.load(load_path)
 print("loading checkpoint epoch ",checkpoint["epoch"])
 model.load_state_dict(checkpoint['model_state_dict'])
+text = "Happy Happy good good fun great"
+text_tokens = tokenizer.encode(text)
+generate_kv_biased(model,text_tokens,bag_of_words_model, device, n_tok_max=100)
+exit()
 for int_text_long in next(iter(train_dataset)):
     print("-----------------------------------------------")
     int_tokens = int_text_long[:n_ctx//2]
